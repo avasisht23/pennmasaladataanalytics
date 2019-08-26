@@ -1,0 +1,166 @@
+---
+title: "Penn Masala Spotify Data Analysis 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library('spotifyr')
+library('readxl')
+library('tidyverse')
+library("fmsb")
+library("data.table")
+rm(list = ls())
+
+```
+
+```{r, echo = FALSE, include = FALSE}
+
+spotifyclient = "clientcode"
+spotifykey = "keycode"
+
+Sys.setenv(SPOTIFY_CLIENT_ID = '276f32aa6c1747da8f3a25e2c1656e72')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = '0fc6ba3afd6b44aaad33a55eba61bc41')
+
+access_token = get_spotify_access_token(client_id = Sys.getenv('SPOTIFY_CLIENT_ID'), client_secret = Sys.getenv('SPOTIFY_CLIENT_SECRET'))
+
+full_playlist = get_user_audio_features('pennmasala')
+
+```
+
+```{r, echo = FALSE}
+
+full_playlist1 = full_playlist %>%
+  select(track_name, album_name, track_popularity, danceability, energy, loudness, 
+         speechiness, acousticness, instrumentalness, liveness, valence, tempo, key_mode) %>%
+  rename(Track = track_name, Album = album_name, Popularity = track_popularity, Danceability = danceability,
+         Energy = energy, Loudness = loudness, Speechiness = speechiness, Acousticness = acousticness,
+         Instrumentalness = instrumentalness, Liveness = liveness, Valence = valence, Tempo = tempo, 
+         'Key & Mode' = key_mode) %>%
+  mutate(Popularity = as.numeric(Popularity), Danceability = as.numeric(Danceability), 
+         Energy = as.numeric(Energy), Loudness = as.numeric(Loudness), Speechiness = as.numeric(Speechiness),
+         Acousticness = as.numeric(Acousticness), Instrumentalness = as.numeric(Instrumentalness), 
+         Liveness = as.numeric(Liveness), Valence = as.numeric(Valence), Tempo = as.numeric(Tempo))
+
+vol1 = full_playlist1 %>%
+  filter(Album == 'Penn Masala, Vol. 1') %>%
+  mutate(Year = 2018)
+
+resonance = full_playlist1 %>%
+  filter(Album == 'Resonance') %>%
+  mutate(Year = 2015)
+
+kaavish = full_playlist1 %>%
+  filter(Album == 'Kaavish') %>%
+  mutate(Year = 2013)
+
+panoramic = full_playlist1 %>%
+  filter(Album == 'Panoramic') %>%
+  mutate(Year = 2011)
+
+onDetours = full_playlist1 %>%
+  filter(Album == 'On Detours') %>%
+  mutate(Year = 2009)
+
+pehchaan = full_playlist1 %>%
+  filter(Album == 'Pehchaan') %>%
+  mutate(Year = 2007)
+
+brownAlbum = full_playlist1 %>%
+  filter(Album == 'The Brown Album') %>%
+  mutate(Year = 2007)
+
+full_playlist2 = rbind(vol1, resonance, kaavish, panoramic, onDetours, pehchaan, brownAlbum)
+
+full_playlist2 = full_playlist2 %>%
+  arrange(by = desc(Year))
+
+```
+
+## Which Album Was Most Popular?
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(x = Album, y = Popularity)) + 
+  geom_bar(stat="identity", width=.5, fill=rgb(55,105,214, maxColorValue = 255)) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
+  ggtitle("Which Album Had the Most Popular Hits?")
+
+```
+
+## Which Album Was Most Danceable?
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(x = Album, y = Danceability)) + 
+  geom_bar(stat="identity", width=.5, fill=rgb(55,105,214, maxColorValue = 255)) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
+  ggtitle("Which Album Had the Most Danceable Hits?")
+
+```
+
+## Popularity Graph by Dancebility
+##### Danceability is determined by tempo, rhythm stability, beat strength, and overall regularity.
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(y = Popularity, x = Danceability, color = Album)) +
+  theme_minimal() +
+  geom_smooth(formula = y ~ x, method = 'loess', se=FALSE)
+
+```
+
+## Popularity Graph by Energy
+##### Energy measures intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. Perceptual features contributing to this attribute include dynamic range, perceived loudness, timbre, onset rate, and general entropy.
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(y = Popularity, x = Energy, color = Album)) +
+  theme_minimal() +
+  geom_smooth(formula = y ~ x, method = 'loess', se=FALSE)
+
+```
+
+## Popularity Graph by Loudness
+##### Loudness values are averaged across the entire track and are useful for comparing relative loudness of tracks. Loudness is the quality of a sound that is the primary psychological correlate of physical strength (amplitude). Values typical range between -60 and 0 db.
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(y = Popularity, x = Loudness, color = Album)) +
+  theme_minimal() +
+  geom_smooth(formula = y ~ x, method = 'loess', se=FALSE)
+
+```
+
+## Popularity Graph by Valence
+##### Valence measures the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry)
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(y = Popularity, x = Valence, color = Album)) +
+  theme_minimal() +
+  geom_smooth(formula = y ~ x, method = 'loess', se=FALSE)
+
+```
+
+## Popularity Graph by Tempo
+##### Tempo in beats per minute.
+
+```{r, echo = FALSE}
+
+ggplot(full_playlist2, aes(y = Popularity, x = Tempo, color = Album)) +
+  theme_minimal() +
+  geom_smooth(formula = y ~ x, method = 'loess', se=FALSE)
+
+```
+
+## What Variables explain Popularity?
+
+```{r, echo = FALSE}
+model = lm(Popularity ~ Danceability + Loudness + Tempo, full_playlist2)
+summary(model)
+```
+
+# Conclusion 
+##### There are variables that give a very small indication of how to improve popularity. A model with Danceability, Loudness, Liveness, and Tempo produced the largest explanation out of the available metrics for how popularity varies over our songs. What was suprising was that neither Valence nor Energy metrics were significant in determining how popular a song was. Moving forward, I believe it's important to conisder that a song is more likely to be popular if it contains traces of danceability (i.e. tempo, rhythm stability, beat strength, and overall regularity), loudness (we are averaging -8 db below other tracks on Spotify, maybe raise overall track volume), and high tempo. However, these proxy are not large indicators, as R-squared is low, so this data should not drastically change our musical selection heavily. If anything, this data could help amplify the conveyance of these variables (danceability, energy, etc.) through our videos and marketing efforts!
